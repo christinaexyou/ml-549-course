@@ -30,8 +30,8 @@ if __name__ == '__main__':
     wandb.init(
         project="hw1_spring2023",  # Leave this as 'hw1_spring2023'
         entity="bu-spark-ml",  # Leave this
-        group="<your_BU_username>",  # <<<<<<< Put your BU username here
-        notes="Minimal model"  # <<<<<<< You can put a short note here
+        group="cjxu@bu.edu",  # <<<<<<< Put your BU username here
+        notes="Implemented 3-layer VGG archeitecture"  # <<<<<<< You can put a short note here
     )
 
     """
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     (ds_cifar10_train, ds_cifar10_test), ds_cifar10_info = tfds.load(
         'cifar10',
         split=['train', 'test'],
-        data_dir='/projectnb/ds549/datasets/tensorflow_datasets',
+        data_dir='./ml-549-coursehomeworksspring23_hw1/data',
         shuffle_files=True, # load in random order
         as_supervised=True, # Include labels
         with_info=True, # Include info
@@ -68,27 +68,43 @@ if __name__ == '__main__':
     ds_cifar10_train = ds_cifar10_train.map(normalize_img, num_parallel_calls=tf.data.AUTOTUNE)
     ds_cifar10_train = ds_cifar10_train.cache()     # Cache data
     ds_cifar10_train = ds_cifar10_train.shuffle(ds_cifar10_info.splits['train'].num_examples)
-    ds_cifar10_train = ds_cifar10_train.batch(32)  # <<<<< To change batch size, you have to change it here
+    ds_cifar10_train = ds_cifar10_train.batch(64)  # <<<<< To change batch size, you have to change it here
     ds_cifar10_train = ds_cifar10_train.prefetch(tf.data.AUTOTUNE)
 
     # Prepare cifar10 test dataset
     ds_cifar10_test = ds_cifar10_test.map(normalize_img, num_parallel_calls=tf.data.AUTOTUNE)
-    ds_cifar10_test = ds_cifar10_test.batch(32)    # <<<<< To change batch size, you have to change it here
+    ds_cifar10_test = ds_cifar10_test.batch(64)    # <<<<< To change batch size, you have to change it here
     ds_cifar10_test = ds_cifar10_test.cache()
     ds_cifar10_test = ds_cifar10_test.prefetch(tf.data.AUTOTUNE)
 
     # Define the model here
-    model = tf.keras.models.Sequential([
-        keras.Input(shape=(32, 32, 3)),
-        #####################################
-        # Edit code here -- Update the model definition
-        # You will need a dense last layer with 10 output channels to classify the 10 classes
-        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        layers.Flatten(),
-        layers.Dense(128, activation='relu'),
-        # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        tf.keras.layers.Dense(10)
-    ])
+    model = tf.keras.models.Sequential() 
+
+    model.add(tf.keras.layers.Conv2D(filters=32, kernel_size=(3, 3), padding='same', input_shape=(32, 32, 3)))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Conv2D(32, kernel_size =(3, 3), activation='relu'))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.MaxPooling2D(pool_size=(2,2)))
+    model.add(tf.keras.layers.Dropout(0.2))
+
+    model.add(tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3), padding='same', activation = "relu")) 
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Conv2D(filters=64, kernel_size=(3,3), activation = "relu")) 
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2)))
+    model.add(tf.keras.layers.Dropout(rate=0.3))
+
+    model.add(tf.keras.layers.Conv2D(filters=128, kernel_size=(3,3), padding='same', activation = "relu"))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.Conv2D(filters=128, kernel_size=(3,3), activation = "relu"))
+    model.add(tf.keras.layers.BatchNormalization())
+    model.add(tf.keras.layers.MaxPooling2D(pool_size = (2,2)))
+    model.add(tf.keras.layers.Dropout(rate=0.4))
+
+    model.add(tf.keras.layers.Flatten())
+    model.add(tf.keras.layers.Dense(128, activation='relu'))
+    model.add(tf.keras.layers.Dropout(rate=0.5))
+    model.add(tf.keras.layers.Dense(10, activation='softmax'))
 
     # Log the training hyper-parameters for WandB
     # If you change these in model.compile() or model.fit(), be sure to update them here.
@@ -96,22 +112,20 @@ if __name__ == '__main__':
         #####################################
         # Edit these as desired
         # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-        "learning_rate": 0.001,
+        "learning_rate": 0.005,
         "optimizer": "adam",
-        "epochs": 5,
-        "batch_size": 32
+        "epochs": 50,
+        "batch_size": 64
         # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     }
 
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=.001),
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
-        metrics=[tf.keras.metrics.SparseCategoricalAccuracy()],
-    )
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.005),
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+            metrics=[tf.keras.metrics.SparseCategoricalAccuracy()])
 
     history = model.fit(
         ds_cifar10_train,
-        epochs=5,
+        epochs=50,
         validation_data=ds_cifar10_test,
         callbacks=[WandbMetricsLogger()]
     )
