@@ -1,4 +1,4 @@
-# Project Document Template
+# Project Document 
 
 ## Christina Xu, Chengyu Zhang, Haodong Chen, Kuangfei Long, 2023-02-08 vx.x.x-dev_
 
